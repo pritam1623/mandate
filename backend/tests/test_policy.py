@@ -75,3 +75,16 @@ def test_empty_cart_is_denied():
 
 def test_invalid_quantity_is_denied():
     assert evaluate([item(5, qty=0)], RULES, 0, NOW).outcome == "deny"
+
+
+def test_channel3_categories_map_to_mandate_categories():
+    from app.catalog import map_category
+    assert map_category("coffee-tea-cups", "Bough & Berry 12oz Plaid Paper Coffee Cups with Lids") == "supplies"
+    assert map_category("paper-napkins", "Bounty Quilted Paper Napkins") == "supplies"
+    assert map_category("over-ear-headphones", "Sony MDRZX110NC Noise Cancelling Headphones") == "electronics"
+    assert map_category("on-ear-headphones", "JBL Live 780NC Wireless Noise Cancelling Headphones") == "electronics"
+    assert map_category("espresso-machine-parts", "Group Head Gasket for Breville espresso machine") == "equipment"
+    assert map_category("surface-cleaners", "Food-safe surface sanitizer spray") == "cleaning"
+    assert map_category("whole-bean-coffee", "Lavazza Espresso Whole Bean Coffee 1kg") == "coffee"
+    assert map_category("milk-alternatives", "Oatly Barista Edition Oat Milk") == "pantry"
+    assert map_category("womens-dresses", "Floral maxi dress") == "womens-dresses"

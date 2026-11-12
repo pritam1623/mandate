@@ -33,6 +33,40 @@ DEMO_CATALOG: list[dict] = [
 _cache: dict[str, dict] = {p["id"]: {**p, "currency": "USD", "url": None, "image": None} for p in DEMO_CATALOG}
 
 
+# Channel3 uses fine-grained categories ("coffee-tea-cups", "over-ear-headphones").
+# Mandates use a few simple ones. This deterministic map (code, not the LLM) decides
+# which mandate category a real product falls into, so the policy stays strict.
+# Order matters: the first group whose keywords match wins.
+CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("electronics", ("headphone", "earbud", "earphone", "speaker", "audio", "television", " tv", "laptop",
+                     "computer", "tablet", "smartphone", "phone", "camera", "gaming", "electronic", "smartwatch")),
+    ("cleaning", ("clean", "sanitiz", "disinfect", "detergent", "soap", "wipe", "descal", "bleach", "trash bag",
+                  "garbage bag", "mop", "sponge")),
+    ("equipment", ("espresso machine", "coffee maker", "coffee machine", "grinder", "gasket", "group head",
+                   "portafilter", "tamper", "burr", "kettle", "blender", "appliance", "replacement part", "scale")),
+    ("supplies", ("cup", "lid", "napkin", "straw", "stirrer", "plate", "cutlery", "utensil", "fork", "spoon",
+                  "paper towel", "tissue", "container", "to-go", "takeout", "packaging", "sleeve", "foodservice",
+                  "disposable", "carry", "tray", "bag")),
+    ("coffee", ("coffee bean", "espresso bean", "whole bean", "ground coffee", "coffee pod", "k-cup", "espresso roast",
+                "coffee")),
+    ("pantry", ("milk", "creamer", "sugar", "sweetener", "syrup", "tea", "honey", "cocoa", "snack", "food")),
+]
+
+
+_CATEGORY_PATTERNS = [
+    (name, re.compile(r"\b(?:" + "|".join(re.escape(w.strip()) for w in words) + ")")) for name, words in CATEGORY_RULES
+]
+
+
+def map_category(source_category: str, title: str) -> str:
+    """Keywords must start a word: "lid" matches "lids" but not "solid"."""
+    text = f"{source_category} {title}".lower().replace("-", " ").replace("_", " ")
+    for name, pattern in _CATEGORY_PATTERNS:
+        if pattern.search(text):
+            return name
+    return (source_category or "uncategorized").lower()
+
+
 def get_product(product_id: str) -> dict | None:
     return _cache.get(product_id)
 
@@ -77,10 +111,13 @@ def _channel3_search(query: str, max_price: float | None, limit: int) -> list[di
         offer = offers[0]
         cat = prod.get("category") or {}
         images = prod.get("images") or []
+        source_cat = (cat.get("slug") or cat.get("name") or "") if isinstance(cat, dict) else str(cat)
+        title = prod.get("title", "Untitled")
         item = {
             "id": f"c3-{prod['id']}",
-            "title": prod.get("title", "Untitled"),
-            "category": (cat.get("name") or cat.get("slug") or "uncategorized").lower() if isinstance(cat, dict) else str(cat).lower(),
+            "title": title,
+            "category": map_category(source_cat, title),
+            "source_category": source_cat,
             "merchant": offer.get("domain") or ((prod.get("brands") or [{}])[0].get("name") or "unknown"),
             "price": float(offer["price"]["price"]),
             "currency": offer["price"].get("currency", "USD"),
