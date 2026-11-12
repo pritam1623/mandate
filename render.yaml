@@ -1,0 +1,42 @@
+# Render Blueprint: one click creates the API, the web app and Postgres.
+services:
+  - type: web
+    name: mandate-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: mandate-db, property: connectionString }
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: CHANNEL3_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+  - type: web
+    name: mandate-web
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+databases:
+  - name: mandate-db
+    plan: free
